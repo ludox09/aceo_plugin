@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>aceoDockWidgetBase</class>
+ <widget class="QDockWidget" name="aceoDockWidgetBase">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1087</width>
+    <height>421</height>
+   </rect>
+  </property>
+  <property name="inputMethodHints">
+   <set>Qt::ImhDate</set>
+  </property>
+  <property name="windowTitle">
+   <string>AgriCarbon-EO Plugin</string>
+  </property>
+  <widget class="QWidget" name="dockWidgetContents">
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="2" column="0">
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <item>
+       <widget class="QGraphicsView" name="graphicsView"/>
+      </item>
+     </layout>
+    </item>
+    <item row="0" column="0">
+     <widget class="QgsFileWidget" name="runpath"/>
+    </item>
+    <item row="1" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QPushButton" name="pickmap">
+        <property name="text">
+         <string>pick on map</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="varname"/>
+      </item>
+      <item>
+       <widget class="QgsDateTimeEdit" name="datemin">
+        <property name="date">
+         <date>
+          <year>2021</year>
+          <month>5</month>
+          <day>24</day>
+         </date>
+        </property>
+        <property name="displayFormat">
+         <string>dd/MM/yyyy</string>
+        </property>
+        <property name="calendarPopup">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QgsDateTimeEdit" name="datemax">
+        <property name="displayFormat">
+         <string>dd/MM/yyyy</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QgsDateTimeEdit</class>
+   <extends>QDateTimeEdit</extends>
+   <header>qgsdatetimeedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsFileWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsfilewidget.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
