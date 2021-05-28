@@ -21,7 +21,7 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QObject,Qt
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QObject,Qt,QDate
 from qgis.PyQt.QtGui import QIcon,QColor
 from qgis.PyQt.QtWidgets import QAction, QGraphicsScene, QTableWidgetItem
 from qgis.core import QgsProject,QgsGeometry,QgsPointXY
@@ -30,6 +30,7 @@ from qgis.gui import QgsMapCanvas,QgsMapTool,QgsMapToolEmitPoint,QgsMapToolIdent
 
 # Initialize Qt resources from file resources.py
 from .resources import *
+import traceback
 
 # Import the code for the DockWidget
 from .aceo_plugin_dockwidget import aceoDockWidget
@@ -222,9 +223,19 @@ class aceo:
 
     #--------------------------------------------------------------------------
 
-    def comboBox_change(self):
+    def val_change(self):
+       
+        print(self.dockwidget.datemin.date(),self.dockwidget.datemax.date())
+        try:
+            paths,datesdict,vari,outs,prosail,prosail_dos = self.get_paths(self.experiment_file,self.wz,self.pix)
+            self.make_uncertainty_plot(datesdict,vari,outs,prosail,prosail_dos,self.wz,self.pix)
+        except:
+            traceback.print_exc()
+        
+
+
         # Update comboBox and save value
-        combo = self.dockwidget.sender()
+        #combo = self.dockwidget.sender()
         #selectedLayerIndex = combo.currentIndex()
         #selectedLayer = self.layers[selectedLayerIndex].name()
         #self.saveSettings()
@@ -233,7 +244,9 @@ class aceo:
     def clickedOnMap(self, point, button):
         # Place marker
         #self.M1.setCenter(point)
-        
+
+        self.point = point
+
         # Getting appropritate layers
         self.layer = self.iface.activeLayer()
         
@@ -247,15 +260,15 @@ class aceo:
         nband, profile = self.get_bands(data_provider,point)
         profile = profile.astype(np.int)
            
-        wz = profile[0]
-        pix = profile[2]
-        experiment_file = self.dockwidget.runpath.filePath()
-        varname = self.dockwidget.varname.currentText()
+        self.wz = profile[0]
+        self.pix = profile[2]
+        self.experiment_file = self.dockwidget.runpath.filePath()
 
         try:
-            paths,datesdict,vari,outs,prosail,prosail_dos = self.get_paths(experiment_file,wz,pix,varname)
-            self.make_uncertainty_plot(datesdict,vari,outs,prosail,prosail_dos,wz,pix,varname)
+            paths,datesdict,vari,outs,prosail,prosail_dos = self.get_paths(self.experiment_file,self.wz,self.pix)
+            self.make_uncertainty_plot(datesdict,vari,outs,prosail,prosail_dos,self.wz,self.pix)
         except:
+            traceback.print_exc()
             for i in range(len(self.plots)):
                 item = self.plots.pop(-1)
                 item.remove()  
@@ -297,7 +310,7 @@ class aceo:
 
 
 
-    def get_paths(self,experiment_file,wz,pixel,varname):
+    def get_paths(self,experiment_file,wz,pixel):
        
         """
      
@@ -341,17 +354,38 @@ class aceo:
         wz_str=('%03d'%(wz))
        
         datesdict = np.load(paths['datesdict'],allow_pickle=True).item()
+        #print(datesdict['str_date'])
+        #print(datesdict['str_date'][0])
+        #print(datesdict['str_date'][-1])
 
-        
-        vari=np.load([v for v in paths['varis'] if wz_str in v][0],allow_pickle=True).item()[varname]
+        #self.dockwidget.datemin.setDate(QDate.fromString(str(datesdict['str_date'][0]),"yyyyMMdd"))
+        #self.dockwidget.datemax.setDate(QDate.fromString(str(datesdict['str_date'][-1]),"yyyyMMdd"))
+
+        vari=np.load([v for v in paths['varis'] if wz_str in v][0],allow_pickle=True).item()
         outs=np.load([v for v in paths['outs'] if wz_str in v][0],allow_pickle=True).item()
-        prosail=np.load([v for v in paths['prosail_per_meteo'] if wz_str in v][0],allow_pickle=True).item()['vari']['GLA']['SENTINEL2']
+        prosail=np.load([v for v in paths['prosail_per_meteo'] if wz_str in v][0],allow_pickle=True).item()['vari']
+
+        if self.varlist_obs != prosail.keys():
+            self.varlist_obs = prosail.keys()
+            self.dockwidget.varname_obs.clear()
+            self.dockwidget.varname_obs.addItems(self.varlist_obs)
+        self.varname_obs = self.dockwidget.varname_obs.currentText()
+
+
+        if self.varlist_sim != vari.keys():
+            self.varlist_sim = vari.keys()
+            self.dockwidget.varname_sim.clear()
+            self.dockwidget.varname_sim.addItems(self.varlist_sim)
+        self.varname_sim = self.dockwidget.varname_sim.currentText()
+
+        prosail = prosail[self.varname_obs]['SENTINEL2']
         prosail_dos=[datesdict['str2dos'][d] for d in prosail['dates']]
-               
+        vari = vari[self.varname_sim]
+
         return(paths,datesdict,vari,outs,prosail,prosail_dos)
      
     
-    def make_uncertainty_plot(self,datesdict,vari,outs,prosail,prosail_dos,wz,pixel,varname):
+    def make_uncertainty_plot(self,datesdict,vari,outs,prosail,prosail_dos,wz,pixel):
         """
         
      
@@ -409,19 +443,16 @@ class aceo:
         maxlike=np.argmax(w)
         p, = plt.plot(vari[ outs['LUT_indexes'][maxlike,pixel].astype(int),:].T,color=[0.2,0,0.7])
         self.plots.append(p)
-        plt.ylim(0,7)
-        if varname =='GLA':
-            for j in np.arange(len(prosail_dos)):
-               
-                d     = np.array(prosail_dos).flatten()[j]
-                std   = np.clip(prosail['std'][:,pixel],0.2,100)
-                negsi = (prosail['mean'][:,pixel].flatten()-std.flatten())[j]
-                possi = (prosail['mean'][:,pixel].flatten()+std.flatten())[j]
-               
-                p, = plt.plot((d,d),(negsi,possi),color=[0.4,0.6,0.3],linewidth=2,alpha=0.6)
-                self.plots.append(p)
-                p, = plt.plot(d,prosail['mean'][:,pixel].flatten()[j],'.',color=[0.2,0.4,0.1],markersize=12,alpha=0.8)
-                self.plots.append(p)
+        for j in np.arange(len(prosail_dos)):
+           d     = np.array(prosail_dos).flatten()[j]
+           std   = np.clip(prosail['std'][:,pixel],0.2,100)
+           negsi = (prosail['mean'][:,pixel].flatten()-std.flatten())[j]
+           possi = (prosail['mean'][:,pixel].flatten()+std.flatten())[j]
+
+           p, = plt.plot((d,d),(negsi,possi),color=[0.4,0.6,0.3],linewidth=2,alpha=0.6)
+           self.plots.append(p)
+           p, = plt.plot(d,prosail['mean'][:,pixel].flatten()[j],'.',color=[0.2,0.4,0.1],markersize=12,alpha=0.8)
+           self.plots.append(p)
        
         locs=np.where(np.equal(np.mod(datesdict['str_date'],100),1))[0]
         months=np.round(datesdict['str_date'][locs]/100).astype(int)
@@ -435,10 +466,13 @@ class aceo:
 
         plt.title('zone '+str(wz)+'_ pixel '+str(pixel),color='k')
         plt.axis('tight')
-        plt.ylabel('a posteriori \n'+self.varname,fontsize=10) 
+        plt.ylabel('a posteriori \n'+self.varname_sim,fontsize=10) 
         plt.xlabel('date',fontsize=10)
-        plt.ylim(0,7)
 
+        if self.varname_sim =='GLA':
+            plt.ylim(0,7)
+        else:
+            plt.ylim(np.min(vari[outs['LUT_indexes'][:,pixel]]),np.max(vari[outs['LUT_indexes'][:,pixel]]))
 
         self.figure.canvas.draw()
      
@@ -473,13 +507,18 @@ class aceo:
    
         # Declare parameter widgets
   
-        varlist = ["GLA","NEE"]
+        self.varlist_obs = ["GLA"]
+        self.varlist_sim = ["GLA"]
 
-        self.dockwidget.varname.clear()
+        self.dockwidget.varname_obs.clear()
+        self.dockwidget.varname_sim.clear()
         #self.dockwidget.varname.addItems([var for var in varlist])
-        self.dockwidget.varname.addItems(varlist)
-        self.dockwidget.varname.setCurrentIndex(0)
-        self.dockwidget.varname.currentIndexChanged.connect(self.comboBox_change)
+        self.dockwidget.varname_obs.addItems(self.varlist_obs)
+        self.dockwidget.varname_sim.addItems(self.varlist_obs)
+        self.dockwidget.varname_obs.setCurrentIndex(0)
+        self.dockwidget.varname_sim.setCurrentIndex(0)
+        self.dockwidget.varname_obs.currentIndexChanged.connect(self.val_change)
+        self.dockwidget.varname_sim.currentIndexChanged.connect(self.val_change)
 
         ## Initialize parameter widgets
         #self.dockwidget.comboBox_N0.setCurrentIndex(l0)
@@ -493,13 +532,19 @@ class aceo:
         #self.dockwidget.comboBox_raster.currentIndexChanged.connect(self.comboBox_change) 
         self.dockwidget.runpath.fileChanged.connect(self.saveSettings)
         self.dockwidget.pickmap.clicked.connect(self.pick)
+
+        #self.dockwidget.datemin.dateChanged.connect(self.val_change)
+        #self.dockwidget.datemax.dateChanged.connect(self.val_change)
+
         # Init plot area
         self.figure = plt.figure(figsize = (15,3))
      
         self.dockwidget.runpath.setStorageMode(1)
-        self.varname = self.dockwidget.varname.currentText()
+        self.varname_obs = self.dockwidget.varname_obs.currentText()
+        self.varname_sim = self.dockwidget.varname_sim.currentText()
 
-        plt.ylabel('a posteriori \n'+self.varname,fontsize=10) 
+        plt.ylabel('a posteriori \n'+self.varname_sim,fontsize=10) 
+
         plt.xlabel('date',fontsize=10)
         plt.ylim(0,7)
 

@@ -38,7 +38,10 @@
        </widget>
       </item>
       <item>
-       <widget class="QComboBox" name="varname"/>
+       <widget class="QComboBox" name="varname_obs"/>
+      </item>
+      <item>
+       <widget class="QComboBox" name="varname_sim"/>
       </item>
       <item>
        <widget class="QgsDateTimeEdit" name="datemin">
