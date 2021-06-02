@@ -223,15 +223,23 @@ class aceo:
 
     #--------------------------------------------------------------------------
 
-    def val_change(self):
-       
-        print(self.dockwidget.datemin.date(),self.dockwidget.datemax.date())
+    def Update_Graph(self):
         try:
             paths,datesdict,vari,outs,prosail,prosail_dos = self.get_paths(self.experiment_file,self.wz,self.pix)
             self.make_uncertainty_plot(datesdict,vari,outs,prosail,prosail_dos,self.wz,self.pix)
         except:
             traceback.print_exc()
-        
+            for i in range(len(self.plots)):
+                item = self.plots.pop(-1)
+                item.remove()  
+            plt.title("Invalid pixel",color='r')
+            #self.error_string = plt.text(2,3.5,"Invalid pixel",color='r', size = 50 )
+            self.figure.canvas.draw()
+
+    def val_change(self):
+       
+        print(self.dockwidget.datemin.date(),self.dockwidget.datemax.date())
+        self.Update_Graph()
 
 
         # Update comboBox and save value
@@ -259,22 +267,12 @@ class aceo:
         # Getting pixel dat
         nband, profile = self.get_bands(data_provider,point)
         profile = profile.astype(np.int)
-           
+
         self.wz = profile[0]
         self.pix = profile[2]
         self.experiment_file = self.dockwidget.runpath.filePath()
+        self.Update_Graph()
 
-        try:
-            paths,datesdict,vari,outs,prosail,prosail_dos = self.get_paths(self.experiment_file,self.wz,self.pix)
-            self.make_uncertainty_plot(datesdict,vari,outs,prosail,prosail_dos,self.wz,self.pix)
-        except:
-            traceback.print_exc()
-            for i in range(len(self.plots)):
-                item = self.plots.pop(-1)
-                item.remove()  
-            plt.title("Invalid pixel",color='r')
-            #self.error_string = plt.text(2,3.5,"Invalid pixel",color='r', size = 50 )
-            self.figure.canvas.draw()
 
 
     def Coordinates(self,data_provider,point):
